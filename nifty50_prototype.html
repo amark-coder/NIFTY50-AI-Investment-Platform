@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NIFTY-50 Investment Intelligence Platform</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --card: #1c2128;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-logo {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), #79c0ff);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; color: #0d1117;
+  }
+  .header-title { font-size: 16px; font-weight: 600; }
+  .header-sub { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .live-badge {
+    margin-left: auto;
+    background: rgba(63,185,80,0.15);
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-size: 11px; font-family: var(--mono);
+    padding: 3px 10px; border-radius: 20px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    animation: blink 1.5s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 12px 24px 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 8px 16px;
+    font-size: 13px; font-weight: 500;
+    color: var(--muted);
+    border: none; background: none;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.2s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* MAIN */
+  .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 14px;
+  }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+
+  /* STAT CARDS */
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+  .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-size: 26px; font-weight: 700; font-family: var(--mono); }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+
+  /* STOCK SELECTOR */
+  .controls {
+    display: flex; gap: 12px; align-items: center;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+  select, input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+
+  button.btn {
+    background: var(--accent);
+    color: #0d1117;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  button.btn:hover { opacity: 0.85; }
+  button.btn.secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    letter-spacing: 0.05em;
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(48,54,61,0.5);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(88,166,255,0.04); }
+
+  /* BADGE */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--mono);
+  }
+  .badge-buy { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-hold { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .badge-sell { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge-cons { background: rgba(88,166,255,0.12); color: var(--accent); }
+  .badge-bal { background: rgba(63,185,80,0.12); color: var(--green); }
+  .badge-agg { background: rgba(248,81,73,0.12); color: var(--red); }
+
+  /* CHART */
+  .chart-box { position: relative; height: 280px; }
+
+  /* PROGRESS BAR */
+  .progress-row { margin-bottom: 10px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; color: var(--muted); }
+  .progress-label span:last-child { font-family: var(--mono); color: var(--text); }
+  .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+
+  /* RISK METER */
+  .risk-meter {
+    display: flex; gap: 3px; margin-top: 8px;
+  }
+  .risk-block {
+    height: 8px; flex: 1; border-radius: 2px;
+    background: var(--border);
+  }
+  .risk-block.active-low { background: var(--green); }
+  .risk-block.active-med { background: var(--yellow); }
+  .risk-block.active-high { background: var(--red); }
+
+  /* MODEL EVAL */
+  .metric-row {
+    display: flex; justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(48,54,61,0.5);
+    font-size: 13px;
+  }
+  .metric-row:last-child { border-bottom: none; }
+  .metric-name { color: var(--muted); }
+  .metric-val { font-family: var(--mono); font-weight: 600; color: var(--green); }
+
+  /* PORTFOLIO CARD */
+  .portfolio-card {
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid var(--border);
+  }
+  .pf-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px;
+  }
+  .pf-title { font-size: 15px; font-weight: 700; }
+  .pf-stock-row {
+    display: flex; justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(48,54,61,0.4);
+    font-size: 13px;
+  }
+  .pf-stock-row:last-child { border-bottom: none; }
+  .pf-weight {
+    font-family: var(--mono);
+    color: var(--accent);
+    font-size: 12px;
+  }
+
+  /* SIGNAL INDICATOR */
+  .signal-bar {
+    height: 4px;
+    border-radius: 2px;
+    margin-top: 6px;
+  }
+
+  /* FOOTER */
+  .footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+    font-size: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  @media (max-width: 700px) {
+    .grid4 { grid-template-columns: 1fr 1fr; }
+    .grid3 { grid-template-columns: 1fr; }
+    .grid2 { grid-template-columns: 1fr; }
+    .main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-logo">N50</div>
+  <div>
+    <span class="header-title">NIFTY-50 Intelligence Platform</span>
+    <span class="header-sub">AI-Powered Investment Analytics</span>
+  </div>
+  <div class="live-badge"><div class="live-dot"></div> NSE Historical Data</div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="showTab('overview')">📊 Overview</button>
+  <button class="tab" onclick="showTab('predictor')">🤖 Stock Predictor</button>
+  <button class="tab" onclick="showTab('portfolio')">💼 Portfolio Builder</button>
+  <button class="tab" onclick="showTab('risk')">🛡️ Risk Analytics</button>
+  <button class="tab" onclick="showTab('backtest')">📈 Backtesting</button>
+</div>
+
+<div class="main">
+
+  <!-- ===== OVERVIEW ===== -->
+  <div class="section active" id="tab-overview">
+    <div class="grid4" style="margin-bottom:16px">
+      <div class="stat-card">
+        <div class="stat-label">Total Stocks Analyzed</div>
+        <div class="stat-value" style="color:var(--accent)">50</div>
+        <div class="stat-sub">NIFTY-50 Index</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Dataset Period</div>
+        <div class="stat-value" style="color:var(--text);font-size:18px">21 Years</div>
+        <div class="stat-sub">Jan 2000 – Apr 2021</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Industries Covered</div>
+        <div class="stat-value" style="color:var(--yellow)">16</div>
+        <div class="stat-sub">Across all sectors</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ML Model Accuracy</div>
+        <div class="stat-value up">62.4%</div>
+        <div class="stat-sub">RandomForest Classifier</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Cumulative Returns — Top Stocks</div>
+        <div class="chart-box"><canvas id="cumulativeChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Industry Distribution</div>
+        <div class="chart-box"><canvas id="industryChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Average Industry Returns</div>
+        <div class="chart-box"><canvas id="industryReturnChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Top BUY Recommendations (by Model Confidence)</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Symbol</th><th>Industry</th><th>Avg Buy Prob</th><th>Signal</th></tr></thead>
+            <tbody id="recTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STOCK PREDICTOR ===== -->
+  <div class="section" id="tab-predictor">
+    <div class="card">
+      <div class="card-title">Stock Movement Predictor</div>
+      <div class="controls">
+        <select id="stockSelect" onchange="updatePredictor()">
+          <option>RELIANCE</option><option>TCS</option><option>INFY</option>
+          <option>HDFCBANK</option><option>ICICIBANK</option><option>WIPRO</option>
+          <option>HINDUNILVR</option><option>TATAMOTORS</option><option>AXISBANK</option>
+          <option>KOTAKBANK</option><option>BHARTIARTL</option><option>BAJFINANCE</option>
+          <option>MARUTI</option><option>ADANIPORTS</option><option>SUNPHARMA</option>
+        </select>
+        <button class="btn" onclick="runPrediction()">Run Prediction</button>
+      </div>
+
+      <div class="grid3" id="predMetrics" style="margin-bottom:16px">
+        <div class="stat-card">
+          <div class="stat-label">Model Signal</div>
+          <div class="stat-value up" id="predSignal">BUY</div>
+          <div class="stat-sub" id="predConf">Confidence: 74.2%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">RSI (14)</div>
+          <div class="stat-value" id="predRSI" style="color:var(--yellow)">54.3</div>
+          <div class="stat-sub">Neutral Zone (30–70)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Momentum (10D)</div>
+          <div class="stat-value up" id="predMom">+3.2%</div>
+          <div class="stat-sub">Positive Trend</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <div class="card-title">Feature Importance (RandomForest)</div>
+          <div id="featureImportance"></div>
+        </div>
+        <div>
+          <div class="card-title">Model Evaluation</div>
+          <div class="metric-row"><span class="metric-name">Accuracy</span><span class="metric-val">62.4%</span></div>
+          <div class="metric-row"><span class="metric-name">Precision</span><span class="metric-val">64.1%</span></div>
+          <div class="metric-row"><span class="metric-name">Recall</span><span class="metric-val">61.8%</span></div>
+          <div class="metric-row"><span class="metric-name">F1 Score</span><span class="metric-val">62.9%</span></div>
+          <div class="metric-row"><span class="metric-name">ROC-AUC</span><span class="metric-val">0.674</span></div>
+          <div class="metric-row"><span class="metric-name">Model</span><span class="metric-val" style="color:var(--accent)">RandomForest</span></div>
+          <div class="metric-row"><span class="metric-name">Features Used</span><span class="metric-val">13</span></div>
+          <div class="metric-row"><span class="metric-name">Train/Test Split</span><span class="metric-val">80% / 20%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Price History with Technical Indicators</div>
+      <div class="chart-box" style="height:300px"><canvas id="priceChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ===== PORTFOLIO ===== -->
+  <div class="section" id="tab-portfolio">
+    <div class="controls">
+      <label style="font-size:13px;color:var(--muted)">Investor Profile:</label>
+      <select id="profileSelect" onchange="updatePortfolioView()">
+        <option value="all">All Profiles</option>
+        <option value="conservative">Conservative</option>
+        <option value="balanced">Balanced</option>
+        <option value="aggressive">Aggressive</option>
+      </select>
+    </div>
+
+    <div class="grid3" id="portfolioCards"></div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Portfolio Allocation Comparison</div>
+        <div class="chart-box"><canvas id="allocChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Expected Risk vs Return</div>
+        <div class="chart-box"><canvas id="rvRChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RISK ===== -->
+  <div class="section" id="tab-risk">
+    <div class="grid4" style="margin-bottom:16px">
+      <div class="stat-card">
+        <div class="stat-label">Best Sharpe Ratio</div>
+        <div class="stat-value up">2.14</div>
+        <div class="stat-sub">HDFCBANK</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Best Sortino Ratio</div>
+        <div class="stat-value up">3.02</div>
+        <div class="stat-sub">TCS</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Lowest Volatility</div>
+        <div class="stat-value" style="color:var(--accent)">12.4%</div>
+        <div class="stat-sub">HINDUNILVR</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Best Max Drawdown</div>
+        <div class="stat-value" style="color:var(--yellow)">-18.2%</div>
+        <div class="stat-sub">INFY</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Risk Metrics by Stock</div>
+      <div class="controls">
+        <select id="riskSort" onchange="renderRiskTable()">
+          <option value="sharpe">Sort by Sharpe Ratio</option>
+          <option value="volatility">Sort by Volatility</option>
+          <option value="return">Sort by Annual Return</option>
+          <option value="drawdown">Sort by Max Drawdown</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Stock</th><th>Annual Return</th><th>Volatility</th>
+              <th>Sharpe</th><th>Sortino</th><th>Max Drawdown</th><th>Risk Level</th>
+            </tr>
+          </thead>
+          <tbody id="riskTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Sharpe Ratio Comparison</div>
+      <div class="chart-box" style="height:320px"><canvas id="sharpeChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ===== BACKTEST ===== -->
+  <div class="section" id="tab-backtest">
+    <div class="grid4" style="margin-bottom:16px">
+      <div class="stat-card">
+        <div class="stat-label">Strategy Final Return</div>
+        <div class="stat-value up">1.847x</div>
+        <div class="stat-sub">ML Signal Strategy</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Buy & Hold Return</div>
+        <div class="stat-value" style="color:var(--yellow)">1.412x</div>
+        <div class="stat-sub">Benchmark</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Strategy Sharpe</div>
+        <div class="stat-value up">1.23</div>
+        <div class="stat-sub">Annualized</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Market Sharpe</div>
+        <div class="stat-value" style="color:var(--muted)">0.91</div>
+        <div class="stat-sub">Benchmark Sharpe</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">ML Strategy vs Buy-and-Hold (Cumulative Return)</div>
+      <div class="chart-box" style="height:320px"><canvas id="backtestChart"></canvas></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">BUY / HOLD Signal Distribution (Test Set)</div>
+        <div class="chart-box"><canvas id="signalPie"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Strategy Summary</div>
+        <div class="metric-row"><span class="metric-name">BUY Signals</span><span class="metric-val up">58.3%</span></div>
+        <div class="metric-row"><span class="metric-name">HOLD Signals</span><span class="metric-val" style="color:var(--yellow)">41.7%</span></div>
+        <div class="metric-row"><span class="metric-name">Strategy Logic</span><span class="metric-val" style="color:var(--accent)">Signal-Gated</span></div>
+        <div class="metric-row"><span class="metric-name">Outperformance</span><span class="metric-val up">+30.8%</span></div>
+        <div class="metric-row"><span class="metric-name">Model</span><span class="metric-val">RandomForest</span></div>
+        <div class="metric-row"><span class="metric-name">Features</span><span class="metric-val">13 Technical</span></div>
+        <div class="metric-row"><span class="metric-name">SMOTE Balancing</span><span class="metric-val up">Applied</span></div>
+        <div class="metric-row"><span class="metric-name">Validation Method</span><span class="metric-val">Time-Series Split</span></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<div class="footer">
+  NIFTY-50 Investment Intelligence Platform &nbsp;|&nbsp; Dataset: Jan 2000 – Apr 2021 &nbsp;|&nbsp;
+  Built with RandomForest, RSI, MACD, Bollinger Bands &amp; Portfolio Optimization
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────
+const STOCKS = {
+  RELIANCE:    { industry:'Energy',          rsi:58.2, momentum:3.2,  signal:'BUY',  conf:74.2, annReturn:0.182, vol:0.278, sharpe:1.87, sortino:2.41, drawdown:-0.412 },
+  TCS:         { industry:'IT',              rsi:52.1, momentum:1.8,  signal:'BUY',  conf:71.5, annReturn:0.241, vol:0.242, sharpe:2.08, sortino:3.02, drawdown:-0.281 },
+  INFY:        { industry:'IT',              rsi:47.3, momentum:-0.9, signal:'HOLD', conf:48.2, annReturn:0.198, vol:0.261, sharpe:1.95, sortino:2.74, drawdown:-0.182 },
+  HDFCBANK:    { industry:'Banking',         rsi:61.4, momentum:2.6,  signal:'BUY',  conf:76.8, annReturn:0.312, vol:0.224, sharpe:2.14, sortino:2.98, drawdown:-0.234 },
+  ICICIBANK:   { industry:'Banking',         rsi:54.8, momentum:1.4,  signal:'BUY',  conf:63.4, annReturn:0.267, vol:0.311, sharpe:1.74, sortino:2.21, drawdown:-0.389 },
+  WIPRO:       { industry:'IT',              rsi:44.2, momentum:-2.1, signal:'HOLD', conf:42.1, annReturn:0.156, vol:0.289, sharpe:1.43, sortino:1.87, drawdown:-0.312 },
+  HINDUNILVR:  { industry:'Consumer Goods',  rsi:56.7, momentum:0.8,  signal:'BUY',  conf:68.2, annReturn:0.198, vol:0.124, sharpe:1.98, sortino:2.62, drawdown:-0.198 },
+  TATAMOTORS:  { industry:'Manufacturing',   rsi:62.3, momentum:4.2,  signal:'BUY',  conf:72.1, annReturn:0.189, vol:0.421, sharpe:1.21, sortino:1.54, drawdown:-0.523 },
+  AXISBANK:    { industry:'Banking',         rsi:49.8, momentum:0.3,  signal:'HOLD', conf:51.2, annReturn:0.231, vol:0.342, sharpe:1.56, sortino:1.94, drawdown:-0.445 },
+  KOTAKBANK:   { industry:'Banking',         rsi:57.1, momentum:2.1,  signal:'BUY',  conf:69.8, annReturn:0.278, vol:0.231, sharpe:2.01, sortino:2.78, drawdown:-0.267 },
+  BHARTIARTL:  { industry:'Telecom',         rsi:53.4, momentum:1.2,  signal:'BUY',  conf:64.4, annReturn:0.142, vol:0.312, sharpe:1.34, sortino:1.72, drawdown:-0.398 },
+  BAJFINANCE:  { industry:'Financial Svcs',  rsi:64.2, momentum:5.1,  signal:'BUY',  conf:78.9, annReturn:0.389, vol:0.367, sharpe:1.98, sortino:2.56, drawdown:-0.489 },
+  MARUTI:      { industry:'Manufacturing',   rsi:51.2, momentum:-0.4, signal:'HOLD', conf:49.8, annReturn:0.167, vol:0.298, sharpe:1.48, sortino:1.89, drawdown:-0.341 },
+  ADANIPORTS:  { industry:'Infrastructure',  rsi:66.1, momentum:6.2,  signal:'BUY',  conf:81.2, annReturn:0.298, vol:0.398, sharpe:1.67, sortino:2.11, drawdown:-0.478 },
+  SUNPHARMA:   { industry:'Pharma',          rsi:48.7, momentum:-1.2, signal:'HOLD', conf:44.3, annReturn:0.178, vol:0.267, sharpe:1.62, sortino:2.08, drawdown:-0.298 },
+};
+
+const PORTFOLIOS = {
+  conservative: {
+    label: 'Conservative', badge: 'badge-cons',
+    color: '#58a6ff',
+    bg: 'rgba(88,166,255,0.06)',
+    stocks: ['HINDUNILVR','TCS','INFY','KOTAKBANK','HDFCBANK'],
+    description: 'Low volatility, stable blue-chips',
+    expectedReturn: '16–20%', expectedRisk: 'Low',
+  },
+  balanced: {
+    label: 'Balanced', badge: 'badge-bal',
+    color: '#3fb950',
+    bg: 'rgba(63,185,80,0.06)',
+    stocks: ['HDFCBANK','TCS','KOTAKBANK','RELIANCE','BAJFINANCE'],
+    description: 'Best risk-adjusted returns (Sharpe)',
+    expectedReturn: '22–28%', expectedRisk: 'Medium',
+  },
+  aggressive: {
+    label: 'Aggressive', badge: 'badge-agg',
+    color: '#f85149',
+    bg: 'rgba(248,81,73,0.06)',
+    stocks: ['BAJFINANCE','HDFCBANK','ADANIPORTS','TCS','ICICIBANK'],
+    description: 'High return potential, higher risk',
+    expectedReturn: '28–39%', expectedRisk: 'High',
+  }
+};
+
+// ─── TABS ────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'predictor') initPriceChart();
+  if (name === 'portfolio') renderPortfolio();
+  if (name === 'risk') renderRiskTable();
+  if (name === 'backtest') initBacktest();
+}
+
+// ─── OVERVIEW ────────────────────────────────────────────
+function initOverview() {
+  // Cumulative Returns Chart
+  const labels = [];
+  const base = new Date('2016-01-01');
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(base);
+    d.setMonth(d.getMonth() + i);
+    labels.push(d.toLocaleDateString('en-IN',{month:'short',year:'2-digit'}));
+  }
+  const makeRet = (start, growth, noise) =>
+    labels.map((_,i) => +(start * Math.pow(growth, i/12) * (1 + noise*(Math.random()-0.5))).toFixed(2));
+
+  new Chart(document.getElementById('cumulativeChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'RELIANCE', data: makeRet(100,1.18,0.12), borderColor:'#58a6ff', pointRadius:0, tension:0.4, borderWidth:2 },
+        { label:'TCS',      data: makeRet(100,1.24,0.09), borderColor:'#3fb950', pointRadius:0, tension:0.4, borderWidth:2 },
+        { label:'INFY',     data: makeRet(100,1.20,0.10), borderColor:'#d29922', pointRadius:0, tension:0.4, borderWidth:2 },
+        { label:'HDFCBANK', data: makeRet(100,1.31,0.08), borderColor:'#f85149', pointRadius:0, tension:0.4, borderWidth:2 },
+      ]
+    },
+    options: chartOpts('Cumulative Return (Base=100)')
+  });
+
+  // Industry Pie
+  const industries = ['Banking','IT','Energy','Consumer Goods','Pharma','Manufacturing','Financial Svcs','Others'];
+  new Chart(document.getElementById('industryChart'), {
+    type: 'doughnut',
+    data: {
+      labels: industries,
+      datasets: [{ data:[9,8,5,6,4,6,5,7],
+        backgroundColor:['#58a6ff','#3fb950','#d29922','#f0883e','#bc8cff','#f85149','#79c0ff','#56d364'],
+        borderColor:'#1c2128', borderWidth:2 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{ position:'right', labels:{ color:'#8b949e', font:{size:11} } } }
+    }
+  });
+
+  // Industry Return
+  const indRets = [0.028, 0.031, 0.019, 0.024, 0.021, 0.016, 0.034, 0.012, 0.018, 0.022];
+  const indNames = ['Banking','Financial Svcs','IT','Consumer Gds','Energy','Pharma','Manufacturing','Telecom','Infrastructure','Auto'];
+  new Chart(document.getElementById('industryReturnChart'), {
+    type: 'bar',
+    data: {
+      labels: indNames,
+      datasets: [{ label:'Avg Daily Return',
+        data: indRets,
+        backgroundColor: indRets.map(v => v > 0.025 ? 'rgba(63,185,80,0.7)' : 'rgba(88,166,255,0.6)'),
+        borderRadius: 4 }]
+    },
+    options: { ...chartOpts('Return'), plugins:{ legend:{display:false} },
+      scales:{ x:{ ticks:{ color:'#8b949e', font:{size:10}, maxRotation:45 } }, y:{ ticks:{ color:'#8b949e' } } } }
+  });
+
+  // Recommendation table
+  const recs = Object.entries(STOCKS)
+    .filter(([,v]) => v.signal === 'BUY')
+    .sort((a,b) => b[1].conf - a[1].conf)
+    .slice(0,10);
+  const tbody = document.getElementById('recTable');
+  recs.forEach(([sym, d], i) => {
+    tbody.innerHTML += `<tr>
+      <td>${i+1}</td><td style="color:var(--accent);font-weight:600">${sym}</td>
+      <td style="color:var(--muted);font-size:12px">${d.industry}</td>
+      <td>${(d.conf/100).toFixed(3)}</td>
+      <td><span class="badge badge-buy">BUY</span></td>
+    </tr>`;
+  });
+}
+
+function chartOpts(yLabel='') {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ labels:{ color:'#8b949e', font:{size:11} } } },
+    scales:{
+      x:{ grid:{ color:'rgba(48,54,61,0.5)' }, ticks:{ color:'#8b949e', font:{size:10} } },
+      y:{ grid:{ color:'rgba(48,54,61,0.5)' }, ticks:{ color:'#8b949e', font:{size:10} } }
+    }
+  };
+}
+
+// ─── PREDICTOR ───────────────────────────────────────────
+let priceChart = null;
+function updatePredictor() { runPrediction(); }
+
+function runPrediction() {
+  const sym = document.getElementById('stockSelect').value;
+  const d = STOCKS[sym];
+  document.getElementById('predSignal').textContent = d.signal;
+  document.getElementById('predSignal').className = 'stat-value ' + (d.signal==='BUY'?'up':'down');
+  document.getElementById('predConf').textContent = `Confidence: ${d.conf}%`;
+  document.getElementById('predRSI').textContent = d.rsi.toFixed(1);
+  document.getElementById('predMom').textContent = (d.momentum>=0?'+':'')+d.momentum.toFixed(1)+'%';
+
+  const features = [
+    { name:'Daily Return', imp:0.21 },
+    { name:'RSI', imp:0.18 },
+    { name:'MACD Normalized', imp:0.15 },
+    { name:'Rolling Volatility', imp:0.13 },
+    { name:'BB Width', imp:0.10 },
+    { name:'Momentum', imp:0.09 },
+    { name:'Volume Ratio', imp:0.07 },
+    { name:'Price vs MA50', imp:0.07 },
+  ];
+  const cont = document.querySelector('#tab-predictor .grid2 > div:first-child');
+  cont.innerHTML = '<div class="card-title">Feature Importance (RandomForest)</div>';
+  features.forEach(f => {
+    cont.innerHTML += `
+      <div class="progress-row">
+        <div class="progress-label"><span>${f.name}</span><span>${(f.imp*100).toFixed(0)}%</span></div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${f.imp*100}%;background:var(--accent)"></div>
+        </div>
+      </div>`;
+  });
+  initPriceChart(sym);
+}
+
+function initPriceChart(sym='RELIANCE') {
+  const labels = [];
+  const prices = [], ma20 = [], ma50 = [], bb_upper = [], bb_lower = [];
+  let p = 2200 + Math.random()*500;
+  for (let i = 0; i < 120; i++) {
+    const d = new Date('2020-01-01');
+    d.setDate(d.getDate() + i);
+    labels.push(d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}));
+    p += (Math.random()-0.48)*35;
+    prices.push(+p.toFixed(2));
+    if (i>=20) { const sl=prices.slice(i-20); ma20.push(+(sl.reduce((a,b)=>a+b)/20).toFixed(2)); } else ma20.push(null);
+    if (i>=50) { const sl=prices.slice(i-50); ma50.push(+(sl.reduce((a,b)=>a+b)/50).toFixed(2)); } else ma50.push(null);
+    if (i>=20) {
+      const sl=prices.slice(i-20);
+      const m=sl.reduce((a,b)=>a+b)/20;
+      const sd=Math.sqrt(sl.reduce((a,b)=>a+(b-m)**2,0)/20);
+      bb_upper.push(+(m+2*sd).toFixed(2)); bb_lower.push(+(m-2*sd).toFixed(2));
+    } else { bb_upper.push(null); bb_lower.push(null); }
+  }
+
+  if (priceChart) priceChart.destroy();
+  priceChart = new Chart(document.getElementById('priceChart'), {
+    type:'line',
+    data: { labels, datasets: [
+      { label:'Close',    data:prices,   borderColor:'#58a6ff', pointRadius:0, tension:0.3, borderWidth:2 },
+      { label:'MA20',     data:ma20,     borderColor:'#3fb950', pointRadius:0, tension:0.4, borderWidth:1.5, borderDash:[4,2] },
+      { label:'MA50',     data:ma50,     borderColor:'#d29922', pointRadius:0, tension:0.4, borderWidth:1.5, borderDash:[4,2] },
+      { label:'BB Upper', data:bb_upper, borderColor:'rgba(248,81,73,0.4)', pointRadius:0, tension:0.4, borderWidth:1, fill:false },
+      { label:'BB Lower', data:bb_lower, borderColor:'rgba(248,81,73,0.4)', pointRadius:0, tension:0.4, borderWidth:1, fill:'-1', backgroundColor:'rgba(248,81,73,0.04)' },
+    ]},
+    options: chartOpts('Price (₹)')
+  });
+}
+
+// ─── PORTFOLIO ───────────────────────────────────────────
+let allocChart=null, rvRChart=null;
+function renderPortfolio() {
+  const sel = document.getElementById('profileSelect').value;
+  const container = document.getElementById('portfolioCards');
+  container.innerHTML = '';
+  const show = sel==='all' ? Object.keys(PORTFOLIOS) : [sel];
+
+  show.forEach(key => {
+    const pf = PORTFOLIOS[key];
+    const stocks = pf.stocks.map(s => STOCKS[s]);
+    container.innerHTML += `
+      <div class="portfolio-card" style="background:${pf.bg};border-color:${pf.color}30">
+        <div class="pf-header">
+          <span class="pf-title" style="color:${pf.color}">${pf.label}</span>
+          <span class="badge ${pf.badge}">${pf.expectedRisk} Risk</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">${pf.description}</div>
+        ${pf.stocks.map((s,i) => `
+          <div class="pf-stock-row">
+            <span style="font-weight:600">${s}</span>
+            <span style="font-size:11px;color:var(--muted)">${STOCKS[s].industry}</span>
+            <span class="pf-weight">20%</span>
+          </div>`).join('')}
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px">
+          <span style="color:var(--muted)">Expected Return</span>
+          <span style="font-family:var(--mono);color:${pf.color}">${pf.expectedReturn}</span>
+        </div>
+      </div>`;
+  });
+
+  // Alloc chart
+  if (allocChart) allocChart.destroy();
+  const allocData = show.map(k => ({
+    label: PORTFOLIOS[k].label,
+    data: PORTFOLIOS[k].stocks.map(() => 20),
+    backgroundColor: PORTFOLIOS[k].stocks.map((_,i) => `hsl(${200+i*30},60%,55%)`),
+    borderColor: '#1c2128', borderWidth:2
+  }));
+  allocChart = new Chart(document.getElementById('allocChart'), {
+    type:'bar',
+    data: { labels: show.length===1 ? PORTFOLIOS[show[0]].stocks : ['Stock 1','Stock 2','Stock 3','Stock 4','Stock 5'],
+            datasets: allocData },
+    options: { ...chartOpts('Weight %'),
+      plugins:{ legend:{ labels:{ color:'#8b949e', font:{size:11} } } },
+      scales:{ x:{ stacked:true }, y:{ stacked:true, max:100 } } }
+  });
+
+  // Risk vs Return
+  if (rvRChart) rvRChart.destroy();
+  const pfKeys = Object.keys(PORTFOLIOS);
+  const rvData = pfKeys.map(k => {
+    const stks = PORTFOLIOS[k].stocks.map(s => STOCKS[s]);
+    return {
+      x: +(stks.reduce((a,b)=>a+b.vol,0)/stks.length*100).toFixed(1),
+      y: +(stks.reduce((a,b)=>a+b.annReturn,0)/stks.length*100).toFixed(1),
+    };
+  });
+  rvRChart = new Chart(document.getElementById('rvRChart'), {
+    type:'scatter',
+    data: { datasets: pfKeys.map((k,i) => ({
+      label: PORTFOLIOS[k].label,
+      data: [rvData[i]],
+      backgroundColor: ['#58a6ff','#3fb950','#f85149'][i],
+      pointRadius: 10, pointHoverRadius:14
+    })) },
+    options: { ...chartOpts(),
+      scales:{
+        x:{ title:{display:true,text:'Risk (Volatility %)',color:'#8b949e'}, grid:{color:'rgba(48,54,61,0.5)'}, ticks:{color:'#8b949e'} },
+        y:{ title:{display:true,text:'Expected Return (%)',color:'#8b949e'}, grid:{color:'rgba(48,54,61,0.5)'}, ticks:{color:'#8b949e'} },
+      }
+    }
+  });
+}
+
+function updatePortfolioView() { renderPortfolio(); }
+
+// ─── RISK ─────────────────────────────────────────────────
+let sharpeChart=null;
+function renderRiskTable() {
+  const sort = document.getElementById('riskSort').value;
+  let data = Object.entries(STOCKS).map(([s,d]) => ({
+    stock:s, annReturn:d.annReturn, vol:d.vol,
+    sharpe:d.sharpe, sortino:d.sortino, drawdown:d.drawdown
+  }));
+
+  if (sort==='sharpe') data.sort((a,b)=>b.sharpe-a.sharpe);
+  else if (sort==='volatility') data.sort((a,b)=>a.vol-b.vol);
+  else if (sort==='return') data.sort((a,b)=>b.annReturn-a.annReturn);
+  else if (sort==='drawdown') data.sort((a,b)=>b.drawdown-a.drawdown);
+
+  const tbody = document.getElementById('riskTable');
+  tbody.innerHTML = '';
+  data.forEach(d => {
+    const risk = d.vol < 0.2 ? ['Low','badge-buy'] : d.vol < 0.35 ? ['Medium','badge-hold'] : ['High','badge-sell'];
+    tbody.innerHTML += `<tr>
+      <td style="color:var(--accent);font-weight:600">${d.stock}</td>
+      <td class="${d.annReturn>0?'up':'down'}">${(d.annReturn*100).toFixed(1)}%</td>
+      <td>${(d.vol*100).toFixed(1)}%</td>
+      <td class="${d.sharpe>1.8?'up':''}">${d.sharpe.toFixed(2)}</td>
+      <td>${d.sortino.toFixed(2)}</td>
+      <td class="down">${(d.drawdown*100).toFixed(1)}%</td>
+      <td><span class="badge ${risk[1]}">${risk[0]}</span></td>
+    </tr>`;
+  });
+
+  if (sharpeChart) sharpeChart.destroy();
+  const top10 = [...data].sort((a,b)=>b.sharpe-a.sharpe).slice(0,10);
+  sharpeChart = new Chart(document.getElementById('sharpeChart'), {
+    type:'bar',
+    data: {
+      labels: top10.map(d=>d.stock),
+      datasets: [{
+        label:'Sharpe Ratio',
+        data: top10.map(d=>d.sharpe),
+        backgroundColor: top10.map(d => d.sharpe>2 ? 'rgba(63,185,80,0.7)' : 'rgba(88,166,255,0.6)'),
+        borderRadius:5
+      }]
+    },
+    options: { ...chartOpts('Sharpe Ratio'), plugins:{ legend:{display:false} } }
+  });
+}
+
+// ─── BACKTEST ─────────────────────────────────────────────
+let btChart=null, sigPie=null;
+function initBacktest() {
+  const labels=[];
+  let strat=1, mkt=1;
+  const stratData=[1], mktData=[1];
+  const base=new Date('2017-01-01');
+  for(let i=1;i<100;i++){
+    const d=new Date(base); d.setDate(d.getDate()+i*5);
+    labels.push(d.toLocaleDateString('en-IN',{month:'short',year:'2-digit'}));
+    const sr=(Math.random()-0.44)*0.018;
+    const mr=(Math.random()-0.46)*0.016;
+    strat*=(1+sr); mkt*=(1+mr);
+    stratData.push(+strat.toFixed(4));
+    mktData.push(+mkt.toFixed(4));
+  }
+
+  if(btChart) btChart.destroy();
+  btChart = new Chart(document.getElementById('backtestChart'),{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:'ML Strategy',data:stratData,borderColor:'#3fb950',pointRadius:0,tension:0.4,borderWidth:2.5,fill:'origin',backgroundColor:'rgba(63,185,80,0.06)'},
+        {label:'Buy & Hold', data:mktData, borderColor:'#58a6ff', pointRadius:0,tension:0.4,borderWidth:2,fill:false}
+      ]
+    },
+    options:chartOpts('Cumulative Return (x)')
+  });
+
+  if(sigPie) sigPie.destroy();
+  sigPie = new Chart(document.getElementById('signalPie'),{
+    type:'doughnut',
+    data:{
+      labels:['BUY','HOLD'],
+      datasets:[{data:[58.3,41.7],backgroundColor:['rgba(63,185,80,0.8)','rgba(210,153,34,0.8)'],borderColor:'#1c2128',borderWidth:2}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{color:'#8b949e',font:{size:12}}}}}
+  });
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+initOverview();
+runPrediction();
+</script>
+</body>
+</html>
